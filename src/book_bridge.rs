@@ -1,3 +1,5 @@
+use std::fs::{create_dir_all};
+use std::path::PathBuf;
 use pdfium::*;
 
 /*
@@ -26,17 +28,25 @@ TODO
 
 */
 
-const MAX_PDF_SIZE:usize = 1024  * 1024 * 29;
+const MAX_PDF_SIZE:usize = 1024  * 1024 * 9;
 const MAX_ALLOWED_IS_READABLE_TEXT:i32 = 20;
 const SET_PAGE:i32 = 298;
 const MAX_PAGE:i32 = SET_PAGE - 2;
 
 
-pub fn split_it(path:String,save_location:String) -> Option<String> {
-    let save_path:String="C:\\Users\\akash.v\\RustroverProjects\\untitled\\pkpadmin,+529-2711-1-CE.pdf".to_string();
+
+pub fn split_it(source_path:String,save_location:String) -> Option<String> {
+
+    let processed_location:Option<BookBridgePath> = create_save_location(save_location);
+
+    if let None = processed_location {
+        return None;
+    }
+    let location =processed_location.unwrap();
 
 
-    let pdf= load_pdf(&save_path);
+    let pdf= load_pdf(&source_path);
+
     if let None = pdf {
         return None;
     }
@@ -91,7 +101,7 @@ pub fn split_it(path:String,save_location:String) -> Option<String> {
              */
             {
                 let path = format!(
-                    "C:\\Users\\akash.v\\RustroverProjects\\untitled\\{}.pdf",
+                    "{}\\{}.pdf",&location.splited,
                     current_pdf
                 );
                 succespdf.pdf.save_to_path(path, None);
@@ -141,15 +151,21 @@ pub fn split_it(path:String,save_location:String) -> Option<String> {
     //
     if(succespdf.index > -1){
         {
+
             let path = format!(
-                "C:\\Users\\akash.v\\RustroverProjects\\untitled\\{}.pdf",
+                "{}\\{}.pdf",&location.splited,
                 current_pdf
             );
+
+            println!("{}",path);
             succespdf.pdf.save_to_path(path, None);
         }
     }
     if(failed_pages_pdf.index > -1){
-        failed_pages_pdf.pdf.save_to_path("C:\\Users\\akash.v\\RustroverProjects\\untitled\\failed.pdf",None);
+        let path = format!(
+            "{}\\1.pdf",&location.failed
+        );
+        failed_pages_pdf.pdf.save_to_path(path, None).expect("TODO: panic message");
     }else{
         println!("no error pdf found");
     }
@@ -201,6 +217,49 @@ impl Pdf {
         return result;
     }
 
+}
+
+
+struct BookBridgePath{
+    destinaton:String,
+    splited:String,
+    failed:String,
+}
+
+fn create_save_location(destination:String)-> Option<BookBridgePath> {
+    let main_path=PathBuf::from(&destination);
+
+    if !&main_path.is_dir() {
+        if let Err(da) = create_dir_all(&main_path) {
+            println!("{} location is not valid",&main_path.to_str().unwrap());
+            return  None;
+        }else {
+            println!("{} location created",&main_path.to_str().unwrap());
+        }
+    }
+
+    let creation=[PathBuf::from(format!(
+        "{}\\splited",&destination
+    )) ,PathBuf::from(format!(
+        "{}\\failed",&destination
+    )) ];
+
+
+    for path in &creation {
+        if !path.is_dir() {
+            if let Err(da) = create_dir_all(&path) {
+                println!("{} location is not valid",path.to_str().unwrap());
+            }else {
+                println!("{} location created",path.to_str().unwrap());
+            }
+        }
+    }
+
+    return Some(BookBridgePath{
+        failed:creation[1].to_str().unwrap().to_string(),
+        destinaton:destination,
+        splited:creation[0].to_str().unwrap().to_string(),
+    });
 }
 
 
