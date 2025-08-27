@@ -32,13 +32,13 @@ const SET_PAGE:i32 = 298;
 const MAX_PAGE:i32 = SET_PAGE - 2;
 
 
-pub fn split_it(path:String) -> String {
-    let save_path:String="C:\\Users\\akash.v\\RustroverProjects\\untitled\\A17_FlightPlan.pdf".to_string();
+pub fn split_it(path:String,save_location:String) -> Option<String> {
+    let save_path:String="C:\\Users\\akash.v\\RustroverProjects\\untitled\\pkpadmin,+529-2711-1-CE.pdf".to_string();
 
 
     let pdf= load_pdf(&save_path);
     if let None = pdf {
-        return "some thing went wrong".to_string();
+        return None;
     }
 
     /*
@@ -67,7 +67,7 @@ pub fn split_it(path:String) -> String {
         let size:usize = get_page_bytes(&pdfium_document,&vec_i32);
         let page_readable:bool = is_page_redable(&pdfium_document,i);
 
-        if(page_readable || size > MAX_PDF_SIZE){
+        if(!page_readable || size > MAX_PDF_SIZE){
             let res=failed_pages_pdf.add_page(&pdfium_document, &vec_i32);
             match res {
                 Some(data)=>{
@@ -105,6 +105,7 @@ pub fn split_it(path:String) -> String {
             */
             current_pdf_size = 0;
             current_pdf += 1;
+            drop(succespdf);
             succespdf = Pdf::new();
 
             let res=succespdf.add_page(&pdfium_document, &vec_i32);
@@ -138,7 +139,7 @@ pub fn split_it(path:String) -> String {
     }
 
     //
-    if(succespdf.index > 0){
+    if(succespdf.index > -1){
         {
             let path = format!(
                 "C:\\Users\\akash.v\\RustroverProjects\\untitled\\{}.pdf",
@@ -147,14 +148,14 @@ pub fn split_it(path:String) -> String {
             succespdf.pdf.save_to_path(path, None);
         }
     }
-    if(failed_pages_pdf.index > 0){
+    if(failed_pages_pdf.index > -1){
         failed_pages_pdf.pdf.save_to_path("C:\\Users\\akash.v\\RustroverProjects\\untitled\\failed.pdf",None);
     }else{
         println!("no error pdf found");
     }
 
 
-    return "".to_string();
+    return Some("".to_string());
 }
 
 

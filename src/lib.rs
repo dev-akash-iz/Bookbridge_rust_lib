@@ -29,16 +29,18 @@ pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_ge
 
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_page(
+pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_loadPdfiumBinary(
     _env: JNIEnv,
     _class: JObject,
-)-> i32 {
+){
     load_binary();
-
-
-    let count = split_it("".to_string());
-
-    23
 }
 
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_SplitPdf(
+    _env: JNIEnv,
+    _class: JObject,
+){
+    load_binary();
+}
 
