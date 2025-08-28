@@ -1,7 +1,7 @@
 mod book_bridge;
 use crate::book_bridge::{load_binary, split_it};
 use jni::JNIEnv;
-use jni::objects::JObject;
+use jni::objects::{JObject, JString};
 use jni::sys::{jint, jstring};
 
 #[unsafe(no_mangle)]
@@ -30,17 +30,47 @@ pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_ge
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_loadPdfiumBinary(
-    _env: JNIEnv,
-    _class: JObject,
+    mut _env: JNIEnv,
+    _class: JObject,  path:JString
 ){
-    load_binary();
+
+    let rust_string: String = _env
+        .get_string(&path)
+        .expect("Couldn't get java string!")
+        .into();
+    println!("{}",rust_string);
+    load_binary(&rust_string);
 }
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_SplitPdf(
-    _env: JNIEnv,
-    _class: JObject,
-){
-    load_binary();
+    mut _env: JNIEnv,
+    _class: JObject, source_path:JString, save_path:JString
+) -> jstring {
+    let source_string: String = _env
+        .get_string(&source_path)
+        .expect("Couldn't get java string!")
+        .into();
+    let save_string: String = _env
+        .get_string(&save_path)
+        .expect("Couldn't get java string!")
+        .into();
+
+  let option= split_it(source_string,save_string);
+
+    if let None = option {
+        let output = _env.new_string("Errror")
+            .expect("Couldn't create java string");
+
+        // Hand it back to the JVM
+
+        return output.into_raw();
+    }
+    let output = _env.new_string(option.unwrap())
+        .expect("Couldn't create java string");
+    return output.into_raw();
 }
+
+
+
 

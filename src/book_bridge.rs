@@ -37,18 +37,19 @@ const MAX_PAGE:i32 = SET_PAGE - 2;
 
 pub fn split_it(source_path:String,save_location:String) -> Option<String> {
 
-    let processed_location:Option<BookBridgePath> = create_save_location(save_location);
+    let processed_location = create_save_location(save_location);
 
-    if let None = processed_location {
-        return None;
+    if let Err(err) = processed_location {
+        return Some(err);
     }
-    let location =processed_location.unwrap();
+
+    let mut location =processed_location.unwrap();
 
 
     let pdf= load_pdf(&source_path);
 
-    if let None = pdf {
-        return None;
+    if let Err(err) = pdf {
+        return Some(err);
     }
 
     /*
@@ -72,9 +73,22 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
     let mut failed_pages_pdf = Pdf::new();
     let mut succespdf = Pdf::new();
 
+
+    vec_i32[0] = 0;
+    let result = get_page_bytes(&pdfium_document,&vec_i32);
+    if let Err(err) = &result{
+        return  Some(err.clone());
+    }
+
+
     for i in 0..total_pages {
         vec_i32[0] = i;
-        let size:usize = get_page_bytes(&pdfium_document,&vec_i32);
+        let result = get_page_bytes(&pdfium_document,&vec_i32);
+        if let Err(err) = &result{
+           return  Some(err.clone());
+        }
+        let size = result.unwrap();
+
         let page_readable:bool = is_page_redable(&pdfium_document,i);
 
         if(!page_readable || size > MAX_PDF_SIZE){
@@ -101,10 +115,19 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
              */
             {
                 let path = format!(
-                    "{}\\{}.pdf",&location.splited,
+                    "{}.pdf",
                     current_pdf
                 );
-                succespdf.pdf.save_to_path(path, None);
+                &location.splited.push(path);
+
+                println!("{}",location.splited.to_str().unwrap());
+               let res=  succespdf.pdf.save_to_path(&location.splited, None);
+
+                &location.splited.pop();
+                println!("{}",location.splited.to_str().unwrap());
+                if let Err(err) =res{
+                    return  Some(err.to_string());
+                }
             }
 
 
@@ -153,19 +176,24 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
         {
 
             let path = format!(
-                "{}\\{}.pdf",&location.splited,
+                "{}.pdf",
                 current_pdf
             );
+            &location.splited.push(path);
 
-            println!("{}",path);
-            succespdf.pdf.save_to_path(path, None);
+            let res=  succespdf.pdf.save_to_path(&location.splited, None);
+
+            &location.splited.pop();
         }
     }
     if(failed_pages_pdf.index > -1){
-        let path = format!(
-            "{}\\1.pdf",&location.failed
-        );
-        failed_pages_pdf.pdf.save_to_path(path, None).expect("TODO: panic message");
+        // let path = format!(
+        //     "1.pdf",
+        //     current_pdf
+        // );
+        &location.failed.push("1.pdf");
+        failed_pages_pdf.pdf.save_to_path(&location.failed, None).expect("TODO: panic message");
+        &location.failed.pop();
     }else{
         println!("no error pdf found");
     }
@@ -211,7 +239,7 @@ impl Pdf {
                 result = Some(self.index);
             },
             Result::Err(err)=>{
-                self.index += 1;
+                self.index -= 1;
             }
         }
         return result;
@@ -221,28 +249,32 @@ impl Pdf {
 
 
 struct BookBridgePath{
-    destinaton:String,
-    splited:String,
-    failed:String,
+    destinaton:PathBuf,
+    splited:PathBuf,
+    failed:PathBuf,
 }
 
-fn create_save_location(destination:String)-> Option<BookBridgePath> {
+fn create_save_location(destination:String)-> Result<BookBridgePath,String> {
     let main_path=PathBuf::from(&destination);
 
     if !&main_path.is_dir() {
         if let Err(da) = create_dir_all(&main_path) {
-            println!("{} location is not valid",&main_path.to_str().unwrap());
-            return  None;
+            return  Err(format!("{} location is not valid",&main_path.to_str().unwrap()));
         }else {
             println!("{} location created",&main_path.to_str().unwrap());
         }
     }
 
-    let creation=[PathBuf::from(format!(
-        "{}\\splited",&destination
-    )) ,PathBuf::from(format!(
-        "{}\\failed",&destination
-    )) ];
+
+
+    let mut failed=PathBuf::from(&destination);
+    failed.push("failed");
+    let mut splited=PathBuf::from(&destination);
+    splited.push("splited");
+
+
+
+    let creation=[splited,failed];
 
 
     for path in &creation {
@@ -255,21 +287,26 @@ fn create_save_location(destination:String)-> Option<BookBridgePath> {
         }
     }
 
-    return Some(BookBridgePath{
-        failed:creation[1].to_str().unwrap().to_string(),
-        destinaton:destination,
-        splited:creation[0].to_str().unwrap().to_string(),
+    return Ok(BookBridgePath{
+        failed:creation[1].clone(),
+        destinaton:main_path,
+        splited:creation[0].clone(),
     });
 }
 
 
 
-fn get_page_bytes(source_pdf:&PdfiumDocument,index_to_copy:&Vec<i32>)->usize{
-    let new_doc = PdfiumDocument::new().unwrap();
+fn get_page_bytes(source_pdf:&PdfiumDocument,index_to_copy:&Vec<i32>)->Result<usize,String>{
+    let res_new_doc_creation = PdfiumDocument::new();
+    if let Err(err)= &res_new_doc_creation {
+       return  Err(err.to_string());
+    }
+    let new_doc=res_new_doc_creation.unwrap();
+
     new_doc.pages().by_ref().import_by_index(source_pdf,Some(&index_to_copy),0);
     //new_doc.save_to_path("C:\\Users\\akash.v\\RustroverProjects\\untitled\\ddd.pdf" ,None);
     let length:usize = new_doc.save_to_bytes(None).unwrap().len();
-    return length;
+    return Ok(length);
 }
 
 fn is_page_redable(source_pdf:&PdfiumDocument,index:i32)-> bool {
@@ -277,15 +314,15 @@ fn is_page_redable(source_pdf:&PdfiumDocument,index:i32)-> bool {
 }
 
 
-fn load_pdf(path:&String)-> Option<PdfiumDocument> {
+fn load_pdf(path:&String)-> Result<PdfiumDocument, String> {
     let pdfium = PdfiumDocument::new_from_path(path, None);
-    let pdfium_document:Option<PdfiumDocument> = match pdfium {
+
+    let pdfium_document = match  pdfium {
         Ok(pdfium_document)=>{
-            Some(pdfium_document)
+            Ok(pdfium_document)
         },
-        Err(..)=>{
-            println!("cannot load pdf");
-            None
+        Err(err)=>{
+             Err(err.to_string())
         }
     };
     return pdfium_document;
@@ -293,20 +330,6 @@ fn load_pdf(path:&String)-> Option<PdfiumDocument> {
 
 
 
-pub fn load_binary() {
-    #[cfg(target_os = "windows")]
-    {
-        set_library_location("C:\\Users\\akash.v\\RustroverProjects\\untitled\\pdfium.dll");
-    }
-
-    #[cfg(target_os = "android")]
-    {
-        set_library_location("libpdfium.so");
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        // Example for macOS
-        set_library_location("/usr/local/lib/libpdfium.dylib");
-    }
+pub fn load_binary(dynamic_path:&String) {
+    set_library_location(dynamic_path);
 }
