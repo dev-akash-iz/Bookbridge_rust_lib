@@ -1,7 +1,7 @@
 mod book_bridge;
 use crate::book_bridge::{load_binary, split_it};
 use jni::JNIEnv;
-use jni::objects::{JObject, JString};
+use jni::objects::{JObject, JString, JValue};
 use jni::sys::{jint, jstring};
 
 #[unsafe(no_mangle)]
@@ -56,7 +56,30 @@ pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_Sp
         .expect("Couldn't get java string!")
         .into();
 
-  let option= split_it(source_string,save_string);
+
+    let jvm = _env.get_java_vm().unwrap();
+
+    let option = split_it(source_string, save_string, Box::new( move |progress: i32| {
+
+        let mut env = jvm.attach_current_thread().unwrap();
+
+
+        let class = env.find_class("com/devakash/bookbridge/pdfProcess/PdfGlobalStore").unwrap();
+        let message = env.new_string("Running").unwrap();
+        let arg_obj: JObject = message.into();
+
+        env.call_static_method(
+            class,
+            "pdfCallbackToFlutter",
+            "(ILjava/lang/String;)V",
+            &[
+                JValue::Int(progress),
+                JValue::Object(&arg_obj), // pass owned JObject
+            ],
+        )
+            .unwrap();
+    }));
+
 
     if let None = option {
         let output = _env.new_string("Errror")
@@ -66,8 +89,10 @@ pub extern "system" fn Java_com_devakash_bookbridge_pdfProcess_PdfGlobalStore_Sp
 
         return output.into_raw();
     }
+
     let output = _env.new_string(option.unwrap())
         .expect("Couldn't create java string");
+
     return output.into_raw();
 }
 

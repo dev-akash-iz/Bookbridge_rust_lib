@@ -35,10 +35,10 @@ const MAX_PAGE:i32 = SET_PAGE - 2;
 
 
 
-pub fn split_it(source_path:String,save_location:String) -> Option<String> {
+pub fn split_it(source_path:String, save_location:String, mut closure: Box<dyn FnMut(i32)>) -> Option<String> {
 
     let processed_location = create_save_location(save_location);
-
+    closure(1);
     if let Err(err) = processed_location {
         return Some(err);
     }
@@ -51,7 +51,7 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
     if let Err(err) = pdf {
         return Some(err);
     }
-
+    closure(20);
     /*
      pdf is loadded so initalize local
      variable to manage pdf page and size
@@ -62,7 +62,7 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
     let mut current_pdf_size:usize = 0;
     let mut current_pdf:usize = 0;
     let total_pages = pdfium_document.page_count();
-
+    closure(30);
 
 
 
@@ -73,7 +73,7 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
     let mut failed_pages_pdf = Pdf::new();
     let mut succespdf = Pdf::new();
 
-
+    closure(40);
     vec_i32[0] = 0;
     let result = get_page_bytes(&pdfium_document,&vec_i32);
     if let Err(err) = &result{
@@ -198,7 +198,7 @@ pub fn split_it(source_path:String,save_location:String) -> Option<String> {
         println!("no error pdf found");
     }
 
-
+    closure(100);
     return Some("".to_string());
 }
 
